@@ -47,7 +47,7 @@
       </thead>
       <tbody>
         <tr v-for="row in rows" :key="String(row.id)" :data-testid="`row-${row.id}`" :data-status="String(row.status)">
-          <td v-for="column in meta.fields" :key="column">{{ row[column] ?? '—' }}</td>
+          <td v-for="column in meta.fields" :key="column">{{ cell(row, column) }}</td>
           <td>{{ row.status }}</td>
           <td class="row-actions">
             <button
@@ -86,6 +86,8 @@
       </form>
     </div>
 
+    <ElapsedMigrationPanel v-if="meta.key === 'api_logger'" />
+
     <footer class="page-foot">
       <span>共 {{ total }} 条{{ meta.name }}记录</span>
       <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
@@ -104,6 +106,7 @@ import {
   runAction as applyAction,
 } from '@/api/backend-service'
 import type { EntryRow } from '@/data/types'
+import ElapsedMigrationPanel from '@/views/ElapsedMigrationPanel.vue'
 
 const props = defineProps<{ moduleKey: string }>()
 const meta = moduleMeta(props.moduleKey)
@@ -133,6 +136,16 @@ const statusSummary = computed(() =>
 function resetFilters() {
   filters.value = {}
   void reload()
+}
+
+// 未知耗时不能显示成 0 或空白；用明确的状态文字让列表可读。
+function cell(row: EntryRow, column: string): string | number {
+  const value = row[column]
+  if (typeof value === 'boolean') return value ? '是' : '否'
+  if (value === null || value === undefined || value === '') {
+    return column === '耗时毫秒' && row.耗时状态 === '未知' ? '未知' : '—'
+  }
+  return value
 }
 
 async function exportRows() {

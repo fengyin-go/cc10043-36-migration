@@ -1,6 +1,6 @@
 {
-  "round": 1,
-  "timestamp": "2026-11-21T22:27:00+08:00",
+  "round": 2,
+  "timestamp": "2026-11-23T20:45:00+08:00",
   "base_commit": "b047a120ea0a0b35c2a57ae804a66efd676b4c8d",
   "tests": [
     {
@@ -8,23 +8,50 @@
       "command": "python3 -m compileall backend/",
       "exit_code": 0,
       "result": "passed",
-      "detail": "所有27个Python文件编译成功，无语法错误"
+      "detail": "后端 app/scripts/tests 全部编译通过"
+    },
+    {
+      "name": "backend-unittest",
+      "command": "cd backend && .venv/bin/python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "result": "passed",
+      "detail": "9 个用例覆盖整数文本解析、有效零、空值/文字占位、中断续跑、回滚、结案修订"
+    },
+    {
+      "name": "backend-e2e-elapsed-migration",
+      "command": "cd backend && .venv/bin/uvicorn app.main:app --port 8123 & .venv/bin/python scripts/verify_elapsed_migration.py",
+      "exit_code": 0,
+      "result": "passed",
+      "detail": "0/12/105/文字占位 + 中断插入 50ms + 补正 200ms + 修订 + 回滚 + 旧入口兼容，全部核对通过"
     },
     {
       "name": "frontend-npm-install",
       "command": "npm install",
       "exit_code": 0,
       "result": "passed",
-      "detail": "51 packages added, 0 errors"
+      "detail": "依赖已就绪"
     },
     {
       "name": "frontend-typecheck",
       "command": "npx vue-tsc --noEmit",
       "exit_code": 0,
       "result": "passed",
-      "detail": "TypeScript类型检查通过，无类型错误"
+      "detail": "新增迁移面板与类型定义通过类型检查"
+    },
+    {
+      "name": "frontend-build",
+      "command": "npx vite build",
+      "exit_code": 0,
+      "result": "passed",
+      "detail": "38 modules transformed，构建成功"
     }
   ],
   "overall": "passed",
-  "fixes_applied": []
+  "fixes_applied": [
+    "整数文本按毫秒读取，有效零与未知分离，未知不补 0",
+    "迁移支持中断续跑与逐批回滚，回滚保留业务补正",
+    "结案固化输入快照，统计与快照逐版复核",
+    "同版重结复用结果，输入更正时出修订版",
+    "旧列表/详情/导出保持字符串耗时契约"
+  ]
 }

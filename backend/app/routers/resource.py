@@ -54,8 +54,7 @@ def export_entries(
         for key, value in request.query_params.items()
         if key in service.LIST_FIELDS and value.strip()
     }
-    items, _ = service.list_entries(
-        filters=filters, keyword=keyword, status=status, page=1, size=1_000_000)
+    items = service.list_for_export(filters=filters, keyword=keyword, status=status)
     output = io.StringIO()
     output.write("\ufeff")
     writer = csv.writer(output, lineterminator="\n")

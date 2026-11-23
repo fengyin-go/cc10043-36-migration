@@ -79,5 +79,52 @@ npm run dev
 - 列表接口统一返回 `{ items, total, page, size }`，动作接口统一返回 `{ ok, message }`。
 - 状态流转只允许在 `app/services` 里改，路由层不做业务判断。
 
+## 耗时字段迁移（API调用日志）
+
+调用耗时从"文本备份"迁移为可运算的整数毫秒，规则集中放在
+`backend/app/services/elapsed.py`：
+
+- 整数或整数文本按毫秒读取；合法的 `0` 是有效测量（快速响应）；
+- 空值、空白和 `未记录`、`n/a` 等无法识别的文本进入未知明细，毫秒保持为空，
+  任何统计都不拿 0 补齐；
+- 每行同时保留 `耗时原文`，迁移前的实际文本可以逐行追查；
+- 重算只依赖结案时固化的输入快照，不依赖日志行之后是否被更正。
+
+上线期间的双读入口：
+
+| 入口 | 用途 |
+| --- | --- |
+| `GET /api/api_logger`（及详情、导出） | 旧字段形状：`耗时毫秒` 仍是字符串，条数与分页不变 |
+| `GET /api/api_logger/legacy` | 与旧列表等价的完整旧视图 |
+| `GET /api/api_logger/elapsed` | 逐行核对：原始文本 / 毫秒值 / 状态 / 未知原因 |
+| `POST /api/api_logger/migration` | 分批迁移，`stop_after` 可中断，重入即续跑 |
+| `POST /api/api_logger/migration/rollback` | 按批或全部回滚；补正过的行保留补正值 |
+| `GET /api/api_logger/migration` | 迁移进度、剩余行数和批次边界 |
+
+调度结案关联本轮日志：
+
+| 入口 | 用途 |
+| --- | --- |
+| `POST /api/api_scheduler/{id}/close` | 固化本轮输入快照与慢请求统计；`revision_of` 出修订 |
+| `GET /api/api_scheduler/{id}/closures` | 版本历史，逐版复核统计与快照是否一致 |
+
+结案统计把"有效样本"和"未知数量"分列，慢请求率的分母固定为有效样本数。
+同一轮再次结案必须显式给出 `revision_of`：输入没变时沿用同版结果，输入被更正
+（如把文字占位补正为真实毫秒）时生成修订版并列出被更正的日志；两版都保留
+各自的输入快照，旧版结论不会被新版覆盖。
+
+### 核对脚本
+
+```bash
+cd backend
+.venv/bin/python -m unittest discover -s tests -v      # 单元测试
+.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8123 &
+.venv/bin/python scripts/verify_elapsed_migration.py    # 端到端场景
+```
+
+端到端脚本覆盖：`0`、`12`、`105`、文字占位四笔 → 迁移到一半写入新的 `50ms`
+→ 结案 → 补正占位为 `200` → 出修订 → 回滚 → 核对旧入口与导出兼容。
+
+
 领域：数据工程
 子方向：数据采集、爬虫与RPA

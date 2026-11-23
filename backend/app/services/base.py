@@ -43,6 +43,18 @@ class BaseModuleService:
     def get_entry(self, entry_id: int) -> dict[str, Any] | None:
         return store.find(self.MODULE, entry_id)
 
+    def list_for_export(
+        self,
+        *,
+        filters: dict[str, str] | None = None,
+        keyword: str | None = None,
+        status: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """导出用的完整结果集；迁移期模块可以覆盖成旧字段形状。"""
+        rows, _total = self.list_entries(
+            filters=filters, keyword=keyword, status=status, page=1, size=1_000_000)
+        return rows
+
     def create_entry(self, values: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
         missing = [
             field for field in self.REQUIRED_FIELDS
